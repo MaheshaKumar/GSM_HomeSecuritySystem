@@ -51,6 +51,7 @@ class UserActions:
         self.udpThread = threading.Thread(target = self.parseUdpMessage )
         self.udpThread.start()
         self.udpServer.startServer()
+        self.rxNumber = ""
     def onUpdReceive(self,data):
         self.UdpMessageQueue.put(data)
     def parseUdpMessage(self):
@@ -92,37 +93,43 @@ class UserActions:
     def parseAtCommand(self,gsmEvent,reGroup):
         if(gsmEvent == atReceive.SMS_NOTIFICATION.value):
             print(reGroup.groups())            
-            number = reGroup.groups()[messageNotiAT.NUMBER.value]
-            if(self.number == ""):
-                message = "Number not registered. Update phone number to continue.\nPhone:<Name>:<Number>\nEx:Phone:Kumar:60123456789\n"
-                self.gsmHandler.SendSms(number,message)
-                self.isMessage = True
-            elif(self.number == number):
-                self.isMessage = True
+            self.rxNumber = reGroup.groups()[messageNotiAT.NUMBER.value]
+            # if(self.number == ""):
+            #     message = "Number not registered. Update phone number to continue.\nPhone:<Name>:<Number>\nEx:Phone:Kumar:60123456789\n"
+            #     self.gsmHandler.SendSms(number,message)
+            #     self.isMessage = True
+            # elif(self.number == number):
+            self.isMessage = True
         if((gsmEvent == atReceive.MESSAGES.value) and (self.isMessage == True)):
             print(reGroup)
-            self.processGsmMessage(reGroup.group())
+            self.processUserMessage(reGroup.group(),self.rxNumber)
             self.isMessage = False
-    def processUserMessage(self,data):
-        print(type(data))
-        if( "HELP" in data.upper()):
-            self.sendHelpMessage()
-        elif("Alert Time".upper() in data.upper()):
-            self.handleUpdateAlertTime(data)
-        elif("Phone".upper() in data.upper()):
+    def processUserMessage(self,data,rxNumber):
+        if(self.number == rxNumber):
+            if( "HELP" in data.upper()):
+                self.sendHelpMessage()
+            elif("Alert Time".upper() in data.upper()):
+                self.handleUpdateAlertTime(data)
+            elif("Phone".upper() in data.upper()):
+                self.handleUpdateUpdatePhoneNumber(data)
+            elif("Sound Alarm".upper() in data.upper()):
+                self.soundAlarmAck()
+            elif("Off Alarm".upper() in data.upper()):
+                self.stopAlarmAck()
+            elif("Door Status".upper() in data.upper()):
+                self.doorStatusAck()   
+            elif("Arm Alarm".upper() in data.upper()):
+                self.alarmArmDiarmAck(True) 
+            elif("DisArm Alarm".upper() in data.upper()):
+                self.alarmArmDiarmAck(False)
+            else:
+                self.gsmHandler.SendSms(self.number,"Invalid input")
+        elif((self.number == None) and ("Phone".upper() in data.upper())):
             self.handleUpdateUpdatePhoneNumber(data)
-        elif("Sound Alarm".upper() in data.upper()):
-            self.soundAlarmAck()
-        elif("Off Alarm".upper() in data.upper()):
-            self.stopAlarmAck()
-        elif("Door Status".upper() in data.upper()):
-            self.doorStatusAck()   
-        elif("Arm Alarm".upper() in data.upper()):
-            self.alarmArmDiarmAck(True) 
-        elif("DisArm Alarm".upper() in data.upper()):
-            self.alarmArmDiarmAck(False)
-        else:
-            self.gsmHandler.SendSms(self.number,"Invalid input")
+        elif (self.number == None):
+            message = "Number not registered. Update phone number to continue.\nPhone:<Name>:<Number>\nEx:Phone:Kumar:60123456789\n"
+            self.gsmHandler.SendSms(rxNumber,message)
+        
         
     def getAlertTime(self):
         message = "Alert Times:\n"
@@ -171,8 +178,10 @@ class UserActions:
         self.gsmHandler.SendSms(self.number,message)
     def alarmArmDiarmAck(self,arm):
         if(arm):
-             message = "Alarm Armed"
+            self.isArm = True
+            message = "Alarm Armed"
         else:
+            self.isArm = False
             message = "Alarm disarmed"
         self.gsmHandler.SendSms(self.number,message)
     def doorStatusAck(self):

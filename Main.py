@@ -13,7 +13,7 @@ from DatabaseHandler import DatabaseConnection
 from AtEnums import messageNotiAT
 from GPIO import *
 from UDP import UdpServer
-serverIp = "192.168.0.113"
+serverIp = "192.168.1.124"
 serverPort = 12000
 DB_PATH = "HomeSecurity.db"
 SERIAL_PORT = "/dev/ttyS0"
