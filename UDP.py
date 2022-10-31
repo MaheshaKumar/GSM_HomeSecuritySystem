@@ -2,6 +2,7 @@
 import socket
 import threading
 import time
+from Event import Event
 
 class UdpServer():
     def __init__(self,ip,port) -> None:
@@ -9,6 +10,7 @@ class UdpServer():
         self.port = port
         self.socket = None
         self.addr = None
+        self.onUdpMessageRx = Event()
     def startServer(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(True)
@@ -18,9 +20,16 @@ class UdpServer():
     def startRecvThread(self):
         while True:
             data, self.addr = self.socket.recvfrom(1024)
-            print("Server: "+data.decode() + self.addr[0])
-            self.sendMessage("Received")
-
+            self.onUdpMessageRx(data)
+            for i in data:
+                print(i)
+            # print("Server: "+data.decode() + self.addr[0])
+            # self.sendMessage("Received")
+    def AddSubscribers(self,objMethod):
+        self.onUdpMessageRx += objMethod
+		
+    def RemoveSubscribers(self,objMethod):
+        self.onUdpMessageRx -= objMethod
     def sendMessage(self,data):
         self.socket.sendto(data.encode(),self.addr)
 class UdpClient():
@@ -47,15 +56,15 @@ class UdpClient():
             print("Client: "+data.decode())
 
 if __name__ == "__main__":
-    serverIp = "127.0.0.1"
+    serverIp = "192.168.0.113"
     serverPort = 12000
     serverSock = UdpServer(serverIp,serverPort)
     clientSock = UdpClient(serverIp,serverPort)
     serverSock.startServer()
-    clientSock.startClient()
-    count = 0
-    while True:        
-        count = count + 1
-        message = "Sending " + str(count)
-        clientSock.sendMessage(message)
-        time.sleep(2)
+    # clientSock.startClient()
+    # count = 0
+    # while True:        
+    #     count = count + 1
+    #     message = "Sending " + str(count)
+    #     clientSock.sendMessage(message)
+    #     time.sleep(2)

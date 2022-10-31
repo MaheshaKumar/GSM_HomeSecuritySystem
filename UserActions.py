@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
+from concurrent.futures import thread
 from enum import Enum, IntEnum, auto
 from itertools import count
+from operator import truediv
 import re
-#from Gsm import GSM
+from Gsm import GSM,atReceive
 from DatabaseHandler import DatabaseConnection,AlertTimeEnum
+from AtEnums import messageNotiAT
+from GPIO import GPIO_Handler,GPIO_State
+from queue import Empty, Full, Queue
+import threading
 
 class UserActionEnum(IntEnum):
     HELP = 0
@@ -23,18 +29,80 @@ class Days(IntEnum):
     SATURDAY = auto()
     SUNDAY = auto()
     DAYS_MAX = auto()
-
+class DoorSensor(IntEnum):
+    HEADER = 0
+    DATA = auto()
+    FOOTER = auto()
+    
 class UserActions:
-    def __init__(self,dbConnection,buzzer,gsmHandler):
+    def __init__(self,dbConnection,buzzer,gsmHandler,udpServer):
+        self.noAckCount = 0
+        self.UdpMessageQueue = Queue(15)
         self.db = dbConnection
         self.buzzer = buzzer
         self.gsmHandler = gsmHandler
         self.number = None
         self.getNumberFromDb()  
+        self.isMessage = False
+        self.isArm = False
+        self.doorIsOpen = False
+        self.udpServer = udpServer
+        self.udpServer.AddSubscribers(self.onUpdReceive)
+        self.udpThread = threading.Thread(target = self.parseUdpMessage )
+        self.udpThread.start()
+        self.udpServer.startServer()
+    def onUpdReceive(self,data):
+        self.UdpMessageQueue.put(data)
+    def parseUdpMessage(self):
+        while True:
+            try:
+                data = self.UdpMessageQueue.get(timeout=1.2)
+                if((data[DoorSensor.HEADER.value] == 0xFF) and (data[DoorSensor.FOOTER.value] == 0xFA) ):
+                    if(data[DoorSensor.DATA.value] == 0x00):
+                        print("Door Close")
+                        self.doorIsOpen = False
+                    else:
+                        print("Door Open")
+                        self.doorIsOpen = True
+                        if(self.isArm == True):
+                            self.intrusionDetectedMessage()
+                self.noAckCount = 0
+            except Empty:
+                self.noAckCount = self.noAckCount + 1
+            except Full:
+                size = self.UdpMessageQueue.qsize()
+                for i in range(size):
+                    self.UdpMessageQueue.get(timeout=0.2)
+            except Exception as e:
+                print(str(e))
+            if(self.noAckCount > 3):
+                self.buzzer.setGpioState(GPIO_State.HIGH)
+                message = "Number not registered. Update phone number to continue.\nPhone:<Name>:<Number>\nEx:Phone:Kumar:60123456789\n"
+                if(self.number != "" and self.isArm == True):
+                    message = "Door Sensor Not Available. Alarm Triggered"
+                    self.gsmHandler.SendSms(self.number,message)
+            
+
     def getNumberFromDb(self):
         dets = self.db.getUserDetails()
         if(len(dets) > 0):
             self.number = dets[0][0]
+    def setIsMessage(self,val):
+        self.isMessage = val
+    def parseAtCommand(self,gsmEvent,reGroup):
+        if(gsmEvent == atReceive.SMS_NOTIFICATION.value):
+            print(reGroup.groups())            
+            number = reGroup.groups()[messageNotiAT.NUMBER.value]
+            if(self.number == ""):
+                message = "Number not registered. Update phone number to continue.\nPhone:<Name>:<Number>\nEx:Phone:Kumar:60123456789\n"
+                self.gsmHandler.SendSms(number,message)
+                self.isMessage = True
+            elif(self.number == number):
+                self.isMessage = True
+        if((gsmEvent == atReceive.MESSAGES.value) and (self.isMessage == True)):
+            print(reGroup)
+            self.processGsmMessage(reGroup.group())
+            self.isMessage = False
     def processUserMessage(self,data):
         print(type(data))
         if( "HELP" in data.upper()):
@@ -49,8 +117,10 @@ class UserActions:
             self.stopAlarmAck()
         elif("Door Status".upper() in data.upper()):
             self.doorStatusAck()   
-        elif("Arm/Disarm".upper() in data.upper()):
-            self.doorStatusAck()  
+        elif("Arm Alarm".upper() in data.upper()):
+            self.alarmArmDiarmAck(True) 
+        elif("DisArm Alarm".upper() in data.upper()):
+            self.alarmArmDiarmAck(False)
         else:
             self.gsmHandler.SendSms(self.number,"Invalid input")
         
@@ -68,7 +138,7 @@ class UserActions:
             
         self.gsmHandler.SendSms(self.number,message)
     def sendHelpMessage(self):
-        message = 'MENU\n1. Update Phone Number\n2. Update Alert Time\n3. Sound Alarm\n4. Door Status\n5. Off Alarm\n6. Arm/Disarm'
+        message = 'MENU\n1. Update Phone Number\n2. Sound Alarm\n3. Door Status\n4. Off Alarm\n5. Arm Alarm\n6. Disarm Alarm'
         self.gsmHandler.SendSms(self.number,message)
     def sendUpdatePhoneNumHelp(self):
         message = "Phone:<Name>:<Number>\nEx:Phone:Kumar:60123456789\n"
@@ -92,9 +162,11 @@ class UserActions:
             message = message +'\n'
         self.gsmHandler.SendSms(self.number,message)
     def soundAlarmAck(self):
+        self.buzzer.setGpioState(GPIO_State.HIGH)
         message = "Alarm Triggered"
         self.gsmHandler.SendSms(self.number,message)
     def stopAlarmAck(self):
+        self.buzzer.setGpioState(GPIO_State.LOW)
         message = "Alarm Stopped"
         self.gsmHandler.SendSms(self.number,message)
     def alarmArmDiarmAck(self,arm):
@@ -103,13 +175,15 @@ class UserActions:
         else:
             message = "Alarm disarmed"
         self.gsmHandler.SendSms(self.number,message)
-    def doorStatusAck(self,doorOpen):
-        if(doorOpen):
+    def doorStatusAck(self):
+        if(self.doorIsOpen == True):
             message = "Door Open"
         else:
             message = "Door Closed"
+        self.gsmHandler.SendSms(self.number,message)
     def intrusionDetectedMessage(self):
-        message = "Intrusion Detected. Alarm Triggered"
+        self.buzzer.setGpioState(GPIO_State.HIGH)
+        message = "Intrusion Detected. Alarm Triggered. Send Off Alarm to stop the alarm"
         self.gsmHandler.SendSms(self.number,message)
 
     def verifyUpdatePhoneNum(self,data):
@@ -165,6 +239,8 @@ class UserActions:
         else:
             if(self.verifyUpdatePhoneNum(data) == False):
                 self.gsmHandler.SendSms(self.number,"Unable to update phone number\n")
+            else:
+                self.getNumberFromDb()
             
         
 if __name__ == "__main__":

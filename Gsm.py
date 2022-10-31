@@ -72,6 +72,8 @@ class GSM:
             
                 
     def SendSms(self,number, message):
+        if(number == ""):
+            return False
         self.setTextMode()
         print("Text Mode Enabled…")
         atCommand = 'AT+CMGS="+{0}"\r'.format(number)

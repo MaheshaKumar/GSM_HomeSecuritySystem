@@ -4,7 +4,7 @@ from unittest import result
 import serial,threading
 import sys,os
 
-from Gsm import QUEUE_SIZE
+
 sys.path.append(os.getcwd())
 from EnumTest import *
 import re, queue
@@ -36,7 +36,7 @@ class SerialComm:
         self.serialInst = serial.Serial(port = name, baudrate = _baudrate,parity = _parity, stopbits = _stopbit, bytesize = _byteSize)
         self.serialInst.timeout = None
         self.OnSerialReceive = Event()
-        self.txQueue = queue.Queue(QUEUE_SIZE)
+        self.txQueue = queue.Queue(15)
     def AddSubscribers(self,objMethod):
         self.OnSerialReceive += objMethod
 		
@@ -104,7 +104,7 @@ def SendSms(serial):
 if __name__ == "__main__":
     try:
 
-        port = "COM8"
+        port = "/dev/ttyS0"
         baudrate = 115200
         parity = serial.PARITY_NONE
         stopbit = serial.STOPBITS_ONE
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         sendThread = threading.Thread(target=send,args=(serialTest,))
         serialTest.close()
 
-        #serialTest.open()
+        serialTest.open()
         time.sleep(3)
         serialTest.sendSerial("ATE0\r\n")
         time.sleep(3)

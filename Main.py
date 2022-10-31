@@ -11,22 +11,27 @@ from AtEnums import timeAT
 from UserActions import *
 from DatabaseHandler import DatabaseConnection
 from AtEnums import messageNotiAT
+from GPIO import *
+from UDP import UdpServer
+serverIp = "192.168.0.113"
+serverPort = 12000
 DB_PATH = "HomeSecurity.db"
-SERIAL_PORT = "COM9"
+SERIAL_PORT = "/dev/ttyS0"
+BUZZER_PIN = 17
 class Application:
     def __init__(self):
         self.isTimeSet = False
         self.gsmHandler = None
         self.gsmSerial= None
-        self.buzzer= None
-        self.udpServer= None
+        self.buzzer = GPIO_Handler(BUZZER_PIN,GPIO_Direction.OUTPUT.value,GPIO_State.LOW.value)
+        self.udpServer= UdpServer(serverIp,serverPort)
         self.doorSensor= None
         self.isMessage = False
         self.number = ""
         self.dbConnection = DatabaseConnection(DB_PATH)  
         self.getNumberFromDb()      
         self.initGsm()
-        self.UserAct = UserActions(self.dbConnection,self.buzzer,self.gsmHandler)
+        self.UserAct = UserActions(self.dbConnection,self.buzzer,self.gsmHandler,self.udpServer)
         self.TestThreadRSSI()
     def initGsm(self):
         port = SERIAL_PORT
@@ -40,22 +45,9 @@ class Application:
         self.gsmHandler.AddSubscribers(self.GsmOnReceive)
 
         
-    def GsmOnReceive(self,gsmEvent,reGroup):  
-        if(gsmEvent == atReceive.SMS_NOTIFICATION.value):
-            print(reGroup.groups())
-            number = reGroup.groups()[messageNotiAT.NUMBER.value]
-            if(self.number == ""):
-                message = "Number not registered. Update phone number to continue"
-                self.gsmHandler.SendSms(number)
-            elif (self.number == number):
-                # if(self.isTimeSet == False):
-                #     #self.setTime(reGroup.groups())
-                self.isMessage = True
-        if((gsmEvent == atReceive.MESSAGES.value) and (self.isMessage == True)):
-            print(reGroup)
-            self.processGsmMessage(reGroup.group())
-            self.isMessage = False        
-
+    def GsmOnReceive(self,gsmEvent,reGroup):          
+        self.UserAct.parseAtCommand(gsmEvent,reGroup)
+                   
     def getRssi(self):
         while True:
             # print("getRssi")
