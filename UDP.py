@@ -56,7 +56,7 @@ class UdpClient():
             print("Client: "+data.decode())
 
 if __name__ == "__main__":
-    serverIp = "192.168.1.124"
+    serverIp = "192.168.4.110"
     serverPort = 12000
     serverSock = UdpServer(serverIp,serverPort)
     clientSock = UdpClient(serverIp,serverPort)

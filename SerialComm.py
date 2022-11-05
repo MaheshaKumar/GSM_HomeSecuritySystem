@@ -104,7 +104,7 @@ def SendSms(serial):
 if __name__ == "__main__":
     try:
 
-        port = "/dev/ttyS0"
+        port = "/dev/ttyUSB0"
         baudrate = 115200
         parity = serial.PARITY_NONE
         stopbit = serial.STOPBITS_ONE

@@ -13,10 +13,10 @@ from DatabaseHandler import DatabaseConnection
 from AtEnums import messageNotiAT
 from GPIO import *
 from UDP import UdpServer
-serverIp = "192.168.1.124"
+serverIp = "192.168.4.110"
 serverPort = 12000
 DB_PATH = "HomeSecurity.db"
-SERIAL_PORT = "/dev/ttyS0"
+SERIAL_PORT = "/dev/ttyUSB0"
 BUZZER_PIN = 17
 class Application:
     def __init__(self):
