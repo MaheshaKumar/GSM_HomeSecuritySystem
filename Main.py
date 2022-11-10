@@ -14,7 +14,7 @@ from AtEnums import messageNotiAT
 from GPIO import *
 from UDP import UdpServer
 import os
-serverIp = "192.168.1.110"
+serverIp = "192.168.4.110"
 serverPort = 12000
 DB_PATH = r"/home/ubuntu/HomeSecurityServer/GSM_HomeSecuritySystem/HomeSecurity.db"
 SERIAL_PORT = "/dev/ttyUSB0"

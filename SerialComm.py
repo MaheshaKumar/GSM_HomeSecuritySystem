@@ -92,7 +92,7 @@ def printSerialData(data):
 def SendSms(serial):
     print("Text Mode Enabled…")
     time.sleep(3)
-    serial.sendSerialBytes(b'AT+CMGS="+60134230613"\r')
+    serial.sendSerialBytes(b'AT+CMGS="+60123456789"\r')
     msg = "test message from SIM900A…"
     print("sending message….")
     time.sleep(3)
