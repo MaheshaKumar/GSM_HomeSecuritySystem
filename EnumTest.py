@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import threading, queue
-import re
+import re,os
 from enum import Enum, auto
 
 QUEUE_MAX_SIZE = 15
@@ -33,5 +33,5 @@ def SendSms(serial):
     time.sleep(3)
     print("message sent…")
 if __name__ == "__main__":
-    for data in atReceive:
-        print('{:15} = {}'.format(data.name, data.value))
+    
+    print(os.path.abspath(os.getcwd())+"/HomeSecurity.db")

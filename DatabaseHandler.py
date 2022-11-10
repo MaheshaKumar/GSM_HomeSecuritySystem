@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sqlite3
+import sqlite3,os
 from sqlite3 import Error
 from enum import IntEnum,auto
 class AlertTimeEnum(IntEnum):
@@ -21,10 +21,8 @@ class DatabaseConnection:
     def createTables(self):
         sql_create_phone_numer_table = 'CREATE TABLE IF NOT EXISTS PhoneNumber (number text PRIMARY KEY,name text NOT NULL);'
         
-        sql_create_alert_time_table  = 'CREATE TABLE IF NOT EXISTS AlertTime (start_time text NOT NULL PRIMARY KEY,end_time text NOT NULL,days int);'
         if self.conn != None:        
             self.conn.execute(sql_create_phone_numer_table)
-            self.conn.execute(sql_create_alert_time_table)
     def insertPhoneNumberTable(self,name,number):
         sql = ''' INSERT INTO PhoneNumber(number,name)
               VALUES(?,?) '''
@@ -60,12 +58,6 @@ class DatabaseConnection:
             ret = True
         return ret
             
-    # def updateAlertTimeTable(self,start,end,days):
-    #     sql = ''' UPDATE AlertTime SET start_time = ?, end_time = ?, days = ? WHERE start_time = ? AND end_time = ?'''
-    #     row = (start,end,str(days),,)
-    #     if self.conn != None:        
-    #         self.conn.execute(sql,row)
-    #         self.conn.commit()
     def deleteAlertTimeTable(self,start,end):
         sql = ''' DELETE FROM AlertTime WHERE start_time = ? AND end_time = ?'''
         row = (start,end)
@@ -99,13 +91,13 @@ class DatabaseConnection:
     
 
 if __name__ == '__main__':
-    db = DatabaseConnection("HomeSecurity.db")
+    db = DatabaseConnection(os.path.abspath(os.getcwd())+"/HomeSecurity.db")
     #db.create_connection("HomeSecurity.db")
     db.createTables()
     try:
-        rows = db.getAllAlertTime()
+        rows = db.getUserDetails()
         for i in rows:
-            print("Start {0}, end {1}, days {2}".format(i[AlertTimeEnum.START],i[AlertTimeEnum.END],i[AlertTimeEnum.DAYS]))
+            print(i)
     except Exception as e:
         print(str(e))
     #db.delAllPhoneNumberFromTable()

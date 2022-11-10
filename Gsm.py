@@ -28,6 +28,14 @@ class atReceiveRegex(Enum):
 
 class GSM:
     def __init__(self, serialComm):
+        """
+        GSM Communication init
+        Arguments:
+            self: an GSM datatype
+            serialComm: serialPort instance
+        Returns:
+            None
+        """
         self.serial = serialComm
         self.rxThread = None
         self.txThread = None
@@ -43,15 +51,47 @@ class GSM:
         self.setBaud(115200)
         self.setEchoOff()
         self.setSleepOff()
+        self.deleteAllMessages()
         
     def AddSubscribers(self,objMethod):
+        """
+        Callback function registration to receive GSM Message
+        Arguments:
+            self: an GSM datatype
+            objMethod: callback function
+        Returns:
+            None
+        """
         self.eventHandler += objMethod
     def registerListerner(self):
+        """
+        Register callback function to serial receive event
+        Arguments:
+            self: an GSM datatype            
+        Returns:
+            None
+        """
         self.serial.AddSubscribers(self.serialOnReceive)
     def serialOnReceive(self,data):
+        """
+        callback function to serial receive event & put into queue for processing
+        Arguments:
+            self: an GSM datatype
+            data: bytes of serial data            
+        Returns:
+            None
+        """
         print("GSM::serialOnReceive:{0}".format(data))
         self.rxQueue.put_nowait(data)
     def processRx(self, data):
+        """
+        Processing Serial data and assigning event
+        Arguments:
+            self: an GSM datatype
+            data: bytes of serial data            
+        Returns:
+            None
+        """
         count = 0
         try:
             if(data.decode() == '\r\n'):
@@ -72,6 +112,15 @@ class GSM:
             
                 
     def SendSms(self,number, message):
+        """
+        Send SMS to user
+        Arguments:
+            self: an GSM datatype
+            number: number to send message to
+            message: Message to be sent to user      
+        Returns:
+            None
+        """
         if(number == ""):
             return False
         self.setTextMode()
@@ -86,28 +135,101 @@ class GSM:
         self.serial.sendSerialBytes(str.encode(message+chr(26)))
         print("message sent…")
     def setEchoOff(self):
+        """
+        AT Command to set serial echo to off
+        Arguments:
+            self: an GSM datatype
+            data: bytes of serial data            
+        Returns:
+            None
+        """
         self.serial.sendSerial("ATE0\r\n")
     def setSleepOff(self):
+        """
+        AT Command to prevent GSM module sleeping
+        Arguments:
+            self: an GSM datatype
+        Returns:
+            None
+        """
         self.serial.sendSerial("AT+CSCLK=0\r\n")
     def getRSSI(self):
+        """
+        AT Command to get radio signal level
+        Arguments:
+            self: an GSM datatype
+        Returns:
+            None
+        """
         self.serial.sendSerial("AT+CSQ\r\n")
     def getAllMessages(self):
+        """
+        AT Command to get all message in sSIM
+        Arguments:
+            self: an GSM datatype
+        Returns:
+            None
+        """
         self.serial.sendSerial('AT+CMGL="ALL",0\r\n')
     def getTime(self):
+        """
+        AT Command to get time from SIM
+        Arguments:
+            self: an GSM datatype
+        Returns:
+            None
+        """
         self.serial.sendSerial('AT+CCLK?\r\n')
     def setTime(self,time):
+        """
+        AT Command to set time to SIM
+        Arguments:
+            self: an GSM datatype
+            time: time string
+        Returns:
+            None
+        """
         atCommand = 'AT+CCLK="{0}"\r\n'.format(time)
         self.serial.sendSerial(atCommand)
     def setTextMode(self):
+        """
+        AT Command to set text mode from PDU
+        Arguments:
+            self: an GSM datatype
+        Returns:
+            None
+        """
         self.serial.sendSerial("AT+CMGF=1\r\n")
     def setBaud(self,baudrate):
+        """
+        AT Command to set GSM module baudrate
+        Arguments:
+            self: an GSM datatype
+            baudrate: Communication speed with GSM serial
+        Returns:
+            None
+        """
         atCommand = 'AT+IPR={0}\r\n'.format(str(baudrate))
         self.serial.sendSerial(atCommand)
     def serialRxThread(self):
+        """
+        Thread to get message from queue for processing
+        Arguments:
+            self: an GSM datatype            
+        Returns:
+            None
+        """
         while True:
             data = self.rxQueue.get()
             self.processRx(data)
     def deleteAllMessages(self):
+        """
+        AT command to delete all messages from SIM
+        Arguments:
+            self: an GSM datatype            
+        Returns:
+            None
+        """
         self.serial.sendSerial('AT+CMGDA="DEL ALL"\r\n')
 
 
